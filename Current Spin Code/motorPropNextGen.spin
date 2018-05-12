@@ -34,8 +34,8 @@ CON
 
   BUTTON_UP         =  12   'POV Thumb Stick has only up, down, left, right
   BUTTON_DOWN       =  13
-  BUTTON_RIGHT      =  14
-  BUTTON_LEFT       =  15
+  BUTTON_RIGHT      =  14    'Use for auger clockwise
+  BUTTON_LEFT       =  15    'Use for auger counterclockwise
 
   'ADC Channel Labels
   {
@@ -74,8 +74,8 @@ VAR
 long xbeeconnected                    
 
 'MOTOR DIRECTIONS
-'0 is clockwise, 1 is counterclockwise     
-'4 is counterclockwise. 5 is clockwise
+'0 is clockwise, 1 is counterclockwise (Motor B)     
+'4 is counterclockwise. 5 is clockwise (Motor A)
 
 
 'ARMS VARIABLES
@@ -98,6 +98,10 @@ long PosExcavator
 long DesPosLegFL, DesPosLegFR, DesPosLegRL, DesPosLegRR
 long DesPosExcavator
 long desiredValuesSet
+
+'AUGER VARIABLES
+long augerSpeed, augerDir
+
 
 'POSITION OFFSETS
  {
@@ -174,6 +178,7 @@ isConnected := 0
  leftWheelSpeed  := 0
  excavatorSpeed  := 0
  linActSpeed     := 0
+ augerSpeed      := 0
 
  'INIT all pos control to OFF
  enableFl        := 0
@@ -259,6 +264,7 @@ isConnected := 0
            frontLeftArmSpeed    := 0
            backLeftArmSpeed := 0
            leftWheelSpeed  := 0
+           augerSpeed := 0
            
           
         'byte0 := input
@@ -385,7 +391,12 @@ PUB processState | excInSpeed
 
         
 
-
+      if getRightButton(BUTTON_LEFT) == 1
+          auger(127)            'counterclockwise
+      elseif getRightButton(BUTTON_RIGHT) == 1
+          auger(-127)            'clockwise
+      if getLeftButton(BUTTON_LEFT) == 1
+          auger(0)
         
           
 
@@ -417,7 +428,8 @@ PUB processState | excInSpeed
          backLeftArmSpeed := 0
          leftWheelSpeed  := 0
          excavatorSpeed  := 0
-         linActSpeed     := 0     
+         linActSpeed     := 0
+         augerSpeed := 0  
          'may want to enable enableExc
          
          'E-Stop can only be disengaged with a re-enable button press
@@ -433,6 +445,7 @@ PUB processState | excInSpeed
        leftWheelSpeed    := 0
                                   
        linActSpeed       := 0
+       augerSpeed := 0
 
 
        ''''''''''''''''''''''''''''''''''''''''''''
@@ -579,6 +592,15 @@ PUB rightArm(inspeed)
       frontRightArmSpeed     := -inspeed
       backRightArmSpeed  := -inspeed
 
+PUB auger(inspeed)
+   inspeed := inspeed #> -127 <# 127
+   if inspeed > 0
+      augerDir  := 4
+      augerSpeed := inspeed
+   else
+      augerDir  := 5
+      augerSpeed  := -inspeed
+
 PUB leftScrew(inspeed)
     'inspeed from -127 to 127
     'positive is clockwise as viewed from rear
@@ -673,6 +695,9 @@ PUB motorDriverUpdater
       'SendH(133, excavatorDir        , excavatorSpeed)
       SendH(134, invertedExcavatorDir, excavatorSpeed)        'good
 
+      'Auger Motor
+      SendH(134, augerDir, augerSpeed)
+
       'Linear Actuator Motor
       SendH(133, linActDir           , linActSpeed)           'good
 
@@ -717,5 +742,8 @@ PUB SendH(address,command,speed) | checksum
   HbridgeFDS.tx(command)                                   'Motor B: 0=forward 1=backward ; Motor A: 4=forward 5=backward
   HbridgeFDS.tx(speed)                                     'Speed 0-127 0=stop (0% duty cycle), 127=max speed (100% duty cycle)
   HbridgeFDS.tx(checksum)                                  'If the H-bridge doesn't calculate the same checksum, then there was a transmission error and the command will be ignored
+
+ 
+
 
  
